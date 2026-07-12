@@ -14,6 +14,38 @@ import asyncpg
 
 log = logging.getLogger("cb-crm-inbound.actions")
 
+# Full inbound reply text stored on 'replied' events (Track R, Jul 2026):
+# the auto-reply responder on EC2 needs the complete prospect message, not
+# the 500-char touch preview. Capped so jsonb meta stays bounded.
+MAX_FULL_TEXT_CHARS = 10240
+_MAX_META_CHARS = 16000
+
+
+def meta_payload(meta: dict) -> str:
+    """Serialize event meta without ever slicing the JSON string.
+
+    Slicing json.dumps output (the pre-Track-R behavior) can cut inside a
+    string literal and produce invalid jsonb once a large field like
+    full_text exists. Instead: shrink full_text until the payload fits,
+    then drop it entirely as the last resort — every other field is small
+    and bounded by callers.
+    """
+    payload = json.dumps(meta, ensure_ascii=False)
+    if len(payload) <= _MAX_META_CHARS:
+        return payload
+    slim = dict(meta)
+    full = str(slim.get("full_text") or "")
+    if full:
+        overshoot = len(payload) - _MAX_META_CHARS
+        slim["full_text"] = full[: max(0, len(full) - overshoot - 64)]
+        slim["full_text_truncated"] = True
+        payload = json.dumps(slim, ensure_ascii=False)
+        if len(payload) <= _MAX_META_CHARS:
+            return payload
+    slim.pop("full_text", None)
+    slim["full_text_truncated"] = True
+    return json.dumps(slim, ensure_ascii=False)
+
 
 @dataclass
 class ActionResult:
@@ -82,7 +114,7 @@ async def _event(
         """,
         event_type,
         contact_id,
-        json.dumps(meta, ensure_ascii=False)[:8000],
+        meta_payload(meta),
     )
 
 
@@ -92,6 +124,7 @@ async def handle_real_reply(
     subject: str,
     preview: str,
     message_id: str | None,
+    full_text: str = "",
 ) -> ActionResult:
     result = ActionResult(category="reply")
     async with pool.acquire() as conn:
@@ -136,6 +169,7 @@ async def handle_real_reply(
                 {
                     "subject": subject,
                     "preview": preview[:300],
+                    "full_text": (full_text or "")[:MAX_FULL_TEXT_CHARS],
                     "message_id": message_id,
                     "source": "cb-crm-inbound",
                 },

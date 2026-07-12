@@ -44,7 +44,8 @@ async def process_inbound(
 
     if cls.category == "reply":
         result = await actions.handle_real_reply(
-            pool, from_email, subject, preview, message_id
+            pool, from_email, subject, preview, message_id,
+            full_text=body_text or "",
         )
         summary.update(
             contact_id=result.contact_id,
