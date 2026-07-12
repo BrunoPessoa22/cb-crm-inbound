@@ -32,6 +32,10 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+# httpx logs full request URLs at INFO; the Telegram URL embeds the bot
+# token. Never let it reach container logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 log = logging.getLogger("cb-crm-inbound.main")
 
 
