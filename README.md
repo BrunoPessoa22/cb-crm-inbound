@@ -45,7 +45,7 @@ the sending MTA retries — replies are not lost during downtime windows.
 
 | Category | Detection | Actions |
 | --- | --- | --- |
-| reply | no auto/OOO/opt-out signals | contact `replied` (never downgrades `meeting_booked`), enrollments `stopped_reply`, `crm_events` `replied`, `crm_touches` in/reply, Telegram `[LEAD]`, forward copy to Bruno |
+| reply | no auto/OOO/opt-out signals | contact `replied` (never downgrades `meeting_booked`), enrollments `stopped_reply`, `crm_events` `replied` (meta.full_text carries the complete message, capped 10240 chars, for the EC2 auto-reply responder), `crm_touches` in/reply, Telegram `[LEAD]`, forward copy to Bruno |
 | optout | remover / descadastrar / nao quero / parar de / unsubscribe ... | `crm_suppressions`, contact `opted_out`, enrollments `stopped_optout`, `crm_events` `opt_out`. Nothing is sent back |
 | ooo | Auto-Submitted/Precedence headers + PT-BR heuristics (ausente, ferias, fora do escritorio ...) | enrollments `paused` with `next_action_at = now() + 7 days` (the sequencer resumes them), `crm_touches` in/auto_reply_ooo. No alert |
 | auto | machine headers without OOO text | logged only |
