@@ -12,8 +12,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # --- Database (CB Neon, shared pooled endpoint — search_path is pinned
-    # in db.py per the cb-crm hard-won lesson) ---
+    # --- Database (aguia-crm-db on the Aguia box since 13 Oct 2026, reached
+    # as aguia-crm-db:5432 on the coolify network; search_path pinned in db.py) ---
     crm_database_url: str = Field(alias="CRM_DATABASE_URL")
 
     # --- Resend (Aguia account) ---
@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     resend_events_webhook_secret: str = Field(
         default="", alias="RESEND_EVENTS_WEBHOOK_SECRET"
     )
+
+    # --- Landing intake (culturabuilder-landings -> /api/leads, /api/visits).
+    # Shared bearer secret; empty disables the intake (503, fail closed).
+    landings_intake_secret: str = Field(default="", alias="LANDINGS_INTAKE_SECRET")
 
     # --- Telegram (fleet bot, same token notify.sh uses) ---
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")

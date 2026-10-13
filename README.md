@@ -41,6 +41,24 @@ the sending MTA retries — replies are not lost during downtime windows.
 4. **IMAP poller** — dormant. Activates automatically when `IMAP_HOST`
    and `IMAP_PASSWORD` are set (e.g. a Google Workspace mailbox).
 
+## Landing intake (`app/intake.py`)
+
+Since 13 Oct 2026 the CRM is `aguia-crm-db` (Postgres 17 in Docker on the
+Aguia box, never exposed to the internet), so `culturabuilder-landings`
+no longer writes SQL. Its `/api/vertical/lead` and `/api/vertical/visit`
+routes POST here instead, and the same rows land in `public.crm_*`:
+
+- **`POST /api/leads`** — company + contact upsert, `form_submit` touch
+  and event (what the `landings_writer` role used to do).
+- **`POST /api/visits`** — `page_visit` touch and event for the contact
+  that owns `visit_token`, at most one per contact per 24h.
+
+`Authorization: Bearer $LANDINGS_INTAKE_SECRET` is checked before the body
+is parsed (empty secret = 503). Rate limits are per `X-Visitor-IP` and
+global per route, in process. `X-Intake-Test: 1` runs the whole write path
+and rolls it back: use it for probes, because `crm_events` is append-only
+and committed test rows cannot be removed.
+
 ## Classification -> CRM actions
 
 | Category | Detection | Actions |
@@ -63,7 +81,8 @@ alert fires (spam protection for the alert channel).
 
 | Var | Use |
 | --- | --- |
-| `CRM_DATABASE_URL` | CB Neon pooled endpoint (same value as `/home/ubuntu/aguia/.cb-crm.env`) |
+| `CRM_DATABASE_URL` | `aguia-crm-db:5432/aguia_crm` on the coolify network (box scripts use the 127.0.0.1:5434 form in `/home/ubuntu/aguia/.cb-crm.env`) |
+| `LANDINGS_INTAKE_SECRET` | bearer secret shared with the landings' `CRM_INTAKE_SECRET` (empty = intake disabled) |
 | `RESEND_API_KEY` | Aguia Resend account (forwarding + received-email fetch) |
 | `RESEND_WEBHOOK_SECRET` | svix secret for the inbound webhook (empty = endpoint rejects all, fail closed) |
 | `RESEND_EVENTS_WEBHOOK_SECRET` | svix secret for the events webhook |

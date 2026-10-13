@@ -8,6 +8,7 @@ Transports:
   receiving domain.
 - POST /webhooks/resend-events — Resend outbound bounce/complaint events.
 - IMAP poller — dormant until IMAP_HOST/IMAP_PASSWORD exist.
+- POST /api/leads, /api/visits — landing-page intake (see intake.py).
 
 Single event loop, single asyncpg pool, shared classification pipeline.
 """
@@ -24,6 +25,7 @@ from fastapi import FastAPI, Request, Response
 from . import actions, imap_poller, resend_client
 from .config import settings
 from .db import close_pool, get_pool
+from .intake import router as intake_router
 from .pipeline import process_inbound
 from .smtp_server import InboundHandler
 from .svix_verify import SignatureError, verify
@@ -73,6 +75,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="cb-crm-inbound", lifespan=lifespan)
+app.include_router(intake_router)
 
 
 @app.get("/healthz")
